@@ -101,14 +101,14 @@ def generate_id():
                 return jsonify({"error": "You can put only one Slot for draw"}), 409 # Conflict
 
         new_id_number = None
-        for i in range(1001): # Iterate from 0 to 1000 (inclusive)
+        for i in range(1,1001): # Iterate from 0 to 1000 (inclusive)
             potential_id = f'VIVOX200FE{str(i).zfill(4)}'
             if potential_id not in existing_ids_set:
                 new_id_number = i
                 break
 
         if new_id_number is None:
-            return jsonify({"error": "All IDs in the range VIVOX200FE0000-VIVOX200FE1000 have been used."}), 500
+            return jsonify({"error": "All IDs in the range VIVOX200FE0001-VIVOX200FE1000 have been used."}), 500
 
         generated_id = f'VIVOX200FE{str(new_id_number).zfill(4)}'
         
