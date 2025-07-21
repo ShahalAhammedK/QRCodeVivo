@@ -35,6 +35,60 @@
                 background-image: url('/static/X200FE-KV-RGB-HOR.jpg'); /* PC Background Image */
             }
         }
+
+        /* Styling for the phone frame container */
+        #phoneFrameContainer {
+            width: 300px; /* Base width for the phone frame */
+            height: 600px; /* Base height for the phone frame (approx 1:2 aspect ratio) */
+            position: relative; /* For absolute positioning of children */
+            margin: 20px auto; /* Center the frame */
+            display: block; /* Ensure it takes up space */
+            /* Fallback background if image fails to load */
+            background-color: #f0f0f0; 
+            overflow: hidden; /* Ensure content stays within the frame boundaries */
+        }
+        #phoneFrameImage {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensure the image fits within the container without cropping */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 5; /* Ensure the image is behind QR/ID but visible */
+        }
+
+        /* Positioning for the QR code inside the phone frame */
+        #qrcode {
+            position: absolute;
+            width: 160px; /* Adjusted size for new frame */
+            height: 160px; /* Square */
+            top: 130px; /* Estimated top position */
+            left: 70px; /* Estimated left position (centered) for new frame */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Hide anything outside the QR code area */
+            z-index: 10; /* Ensure QR code is above the phone frame image */
+        }
+        #qrcode canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Positioning for the generated ID inside the phone frame */
+        #generatedIdDisplay {
+            position: absolute;
+            width: 200px; /* Adjusted width for new frame */
+            top: 350px; /* Estimated top position */
+            left: 50px; /* Estimated left position (centered) for new frame */
+            text-align: center;
+            font-size: 1.25rem; /* text-xl */
+            font-weight: bold;
+            color: #1E46E6; /* vivo-blue */
+            font-family: 'monospace'; /* font-mono */
+            word-break: break-all; /* Ensure long IDs wrap */
+            z-index: 10; /* Ensure ID is above the phone frame image */
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen relative">
@@ -67,8 +121,14 @@
         </form>
 
         <div id="result" class="mt-8 pt-6 border-t border-vivo-gray text-center hidden">
-            <h2 class="text-xl font-bold text-vivo-dark-blue mb-4">Generated ID: <span id="generatedId" class="text-vivo-blue font-mono"></span></h2>
-            <div id="qrcode" class="mt-6 flex justify-center"></div>
+            <!-- Phone frame container for QR and ID -->
+            <div id="phoneFrameContainer">
+                <img id="phoneFrameImage" src="/static/Image_2025-07-21_132427_016.jpg" alt="Phone Frame">
+                <div id="qrcode"></div>
+                <div id="generatedIdDisplay"></div> <!-- New div for displaying ID -->
+            </div>
+            
+            <!-- Download QR button is now visible and functional -->
             <button id="downloadQr"
                     class="mt-6 bg-vivo-dark-blue hover:bg-vivo-blue text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 ease-in-out transform hover:scale-105">
                 Download QR Code
@@ -88,7 +148,12 @@
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <!-- Your custom JavaScript for frontend logic -->
     <script>
-        const FLASK_BACKEND_URL = 'http://127.0.0.1:5000'; // Ensure this matches your Flask app URL
+        // Dynamically set FLASK_BACKEND_URL based on the current host
+        const FLASK_BACKEND_URL = window.location.origin; 
+        // If your Flask backend is on a subdomain or different path, you might need to adjust:
+        // const FLASK_BACKEND_URL = window.location.protocol + '//' + window.location.hostname + ':5000'; // If Flask is on a different port on the same host
+        // const FLASK_BACKEND_URL = 'https://your-flask-service.onrender.com'; // If Flask is a separate Render service
+
 
         // Basic authentication credentials for admin (for demo purposes only)
         const ADMIN_USERNAME = 'admin';
@@ -101,6 +166,27 @@
         vivoLogoImage.onerror = () => {
             console.error("Failed to load Vivo logo image for QR code. Check the path:", VIVO_LOGO_URL);
         };
+        vivoLogoImage.onload = () => {
+            console.log("Vivo logo image for QR code loaded successfully.");
+        };
+
+
+        // Path to the phone frame image
+        const PHONE_FRAME_URL = '/static/Image_2025-07-21_132427_016.jpg'; // NEW PHONE FRAME IMAGE
+        let phoneFrameImage = new Image();
+        phoneFrameImage.src = PHONE_FRAME_URL;
+        phoneFrameImage.onerror = () => {
+            console.error("Failed to load phone frame image. Check the path:", PHONE_FRAME_URL);
+            const phoneFrameContainer = document.getElementById('phoneFrameContainer');
+            if (phoneFrameContainer) {
+                phoneFrameContainer.style.backgroundColor = '#f0f0f0'; // Fallback background
+                phoneFrameContainer.style.border = '1px dashed #ccc';
+            }
+        };
+        phoneFrameImage.onload = () => {
+            console.log("Phone frame image loaded successfully.");
+        };
+
 
         // Function to generate a UUID (Universally Unique Identifier)
         function generateUUID() {
@@ -125,12 +211,13 @@
             const phoneInput = document.getElementById('phone');
             const emailInput = document.getElementById('email');
             const resultDiv = document.getElementById('result');
-            const generatedIdSpan = document.getElementById('generatedId');
+            const generatedIdSpan = document.getElementById('generatedIdDisplay');
             const qrcodeDiv = document.getElementById('qrcode');
-            const downloadQrButton = document.getElementById('downloadQr');
+            const downloadQrButton = document.getElementById('downloadQr'); // Re-enabled
             const adminAccessButton = document.getElementById('adminAccessButton');
 
-            let currentQrCodeDataURL = '';
+            // Store the generated ID globally so it can be accessed by the download button
+            let currentGeneratedId = ''; 
 
             // --- User View Logic ---
             idForm.addEventListener('submit', async (e) => {
@@ -168,12 +255,12 @@
                         throw new Error(data.error || 'Failed to generate ID from backend.');
                     }
 
-                    const generatedId = data.id;
-                    generatedIdSpan.textContent = generatedId;
+                    currentGeneratedId = data.id; // Store the generated ID
+                    generatedIdSpan.textContent = currentGeneratedId;
 
                     qrcodeDiv.innerHTML = '';
                     new QRCode(qrcodeDiv, {
-                        text: generatedId,
+                        text: currentGeneratedId,
                         width: 200,
                         height: 200,
                         colorDark : "#000000",
@@ -181,7 +268,17 @@
                         correctLevel : QRCode.CorrectLevel.H
                     });
 
-                    setTimeout(() => {
+                    // Wait for QR code and Vivo logo to load, then draw QR with logo
+                    Promise.all([
+                        new Promise(resolve => setTimeout(resolve, 100)), // Give QR code time to render
+                        new Promise(resolve => {
+                            if (vivoLogoImage.complete && vivoLogoImage.naturalWidth > 0) {
+                                resolve();
+                            } else {
+                                vivoLogoImage.onload = resolve;
+                            }
+                        })
+                    ]).then(() => {
                         const canvas = qrcodeDiv.querySelector('canvas');
                         if (canvas) {
                             const ctx = canvas.getContext('2d');
@@ -192,16 +289,19 @@
                                 const logoHeight = logoWidth * (vivoLogoImage.naturalHeight / vivoLogoImage.naturalWidth);
                                 const logoX = (qrSize - logoWidth) / 2;
                                 const logoY = (qrSize - logoHeight) / 2;
-
                                 ctx.drawImage(vivoLogoImage, logoX, logoY, logoWidth, logoHeight);
                             } else {
-                                console.warn("Vivo logo not loaded, QR code generated without logo overlay.");
+                                console.warn("Vivo logo not loaded for QR code overlay.");
                             }
+                            
+                            // Trigger automatic download here
+                            triggerQrImageDownload(currentGeneratedId, canvas); // Pass generatedId and the canvas
 
-                            currentQrCodeDataURL = canvas.toDataURL("image/png");
-                            downloadQrButton.classList.remove('hidden');
                         }
-                    }, 100);
+                    }).catch(error => {
+                        console.error("Error loading images for QR display:", error);
+                        alert("Failed to render QR code with logo. Please try again.");
+                    });
 
                     resultDiv.classList.remove('hidden');
 
@@ -211,16 +311,141 @@
                 }
             });
 
-            downloadQrButton.addEventListener('click', () => {
-                if (currentQrCodeDataURL && generatedIdSpan.textContent) {
+            // Re-added downloadQrButton click listener
+            downloadQrButton.addEventListener('click', async () => {
+                // Ensure QR code is generated before attempting to download
+                if (!currentGeneratedId || !qrcodeDiv.querySelector('canvas')) {
+                    alert('Please generate an ID and QR code first.');
+                    return;
+                }
+                // Reuse the same download logic
+                triggerQrImageDownload(currentGeneratedId, qrcodeDiv.querySelector('canvas'));
+            });
+
+            // Reusable function for triggering QR image download
+            async function triggerQrImageDownload(generatedId, qrCanvas) {
+                const downloadCanvas = document.createElement('canvas');
+                const downloadCtx = downloadCanvas.getContext('2d');
+
+                const frameWidth = 600; // Final download image width
+                const frameHeight = 1200; // Final download image height
+                downloadCanvas.width = frameWidth;
+                downloadCanvas.height = frameHeight;
+
+                // Fill the canvas with white background first to avoid transparency issues
+                downloadCtx.fillStyle = '#FFFFFF'; // White background
+                downloadCtx.fillRect(0, 0, frameWidth, frameHeight);
+
+                try {
+                    const [loadedPhoneFrameImage, loadedVivoLogoImage] = await Promise.all([
+                        new Promise(resolve => {
+                            if (phoneFrameImage.complete && phoneFrameImage.naturalWidth > 0) {
+                                resolve(phoneFrameImage);
+                            } else {
+                                phoneFrameImage.onload = () => resolve(phoneFrameImage);
+                                phoneFrameImage.onerror = () => {
+                                    console.error("Failed to load phone frame image for download. Using fallback.");
+                                    resolve(null);
+                                };
+                            }
+                        }),
+                        new Promise(resolve => {
+                            if (vivoLogoImage.complete && vivoLogoImage.naturalWidth > 0) {
+                                resolve(vivoLogoImage);
+                            } else {
+                                vivoLogoImage.onload = () => resolve(vivoLogoImage);
+                                vivoLogoImage.onerror = () => {
+                                    console.error("Failed to load Vivo logo image for download. Using fallback.");
+                                    resolve(null);
+                                };
+                            }
+                        })
+                    ]);
+
+                    // Draw the phone frame image if loaded
+                    if (loadedPhoneFrameImage) {
+                        // Draw the phone frame image to cover the entire download canvas.
+                        const imgAspectRatio = loadedPhoneFrameImage.naturalWidth / loadedPhoneFrameImage.naturalHeight;
+                        const canvasAspectRatio = frameWidth / frameHeight;
+
+                        let drawWidth = frameWidth;
+                        let drawHeight = frameHeight;
+                        let drawX = 0;
+                        let drawY = 0;
+
+                        if (imgAspectRatio > canvasAspectRatio) {
+                            drawHeight = frameHeight;
+                            drawWidth = frameHeight * imgAspectRatio;
+                            drawX = (frameWidth - drawWidth) / 2;
+                        } else {
+                            drawWidth = frameWidth;
+                            drawHeight = frameWidth / imgAspectRatio;
+                            drawY = (frameHeight - drawHeight) / 2;
+                        }
+                        downloadCtx.drawImage(loadedPhoneFrameImage, drawX, drawY, drawWidth, drawHeight);
+
+                    } else {
+                        // Fallback: Draw a solid background if phone frame image failed
+                        downloadCtx.fillStyle = '#D1EBF2'; // Light blue from palette
+                        downloadCtx.fillRect(0, 0, frameWidth, frameHeight);
+                        downloadCtx.fillStyle = '#000000';
+                        downloadCtx.textAlign = 'center';
+                        downloadCtx.font = '20px Arial';
+                        downloadCtx.fillText('Phone Frame Not Loaded', frameWidth / 2, frameHeight / 2);
+                    }
+
+                    // Draw the QR code (from its canvas) onto the download canvas
+                    if (qrCanvas) {
+                        // --- IMPORTANT: These coordinates are crucial for alignment ---
+                        // These values are estimated based on the proportions of the new phone frame image (Image_2025-07-21_132427_016.jpg)
+                        // and the desired output. You might need to fine-tune these slightly.
+                        const qrTargetWidth = frameWidth * 0.6; // QR code takes up 60% of the phone frame width
+                        const qrTargetHeight = qrTargetWidth; // Keep it square
+                        
+                        const qrTargetX = (frameWidth - qrTargetWidth) / 2; // Center horizontally
+                        const qrTargetY = frameHeight * 0.25; // Position 25% down from the top of the frame
+
+                        downloadCtx.drawImage(qrCanvas, qrTargetX, qrTargetY, qrTargetWidth, qrTargetHeight);
+
+                        // Re-draw the Vivo logo on top of the QR code for the download image
+                        if (loadedVivoLogoImage) {
+                            const logoDownloadWidth = qrTargetWidth * 0.35; // Same 35% ratio of QR code
+                            const logoDownloadHeight = logoDownloadWidth * (loadedVivoLogoImage.naturalHeight / loadedVivoLogoImage.naturalWidth);
+                            const logoDownloadX = qrTargetX + (qrTargetWidth - logoDownloadWidth) / 2;
+                            const logoDownloadY = qrTargetY + (qrTargetHeight - logoDownloadHeight) / 2;
+                            downloadCtx.drawImage(loadedVivoLogoImage, logoDownloadX, logoDownloadY, logoDownloadWidth, logoDownloadHeight);
+                        }
+                    } else {
+                        console.error("QR code canvas not available for drawing on download canvas.");
+                    }
+
+
+                    // Draw the Generated ID text onto the download canvas
+                    const idText = generatedIdSpan.textContent;
+                    const idFontSize = 60; // Adjusted font size for 600x1200 canvas
+                    downloadCtx.font = `bold ${idFontSize}px Inter`;
+                    downloadCtx.fillStyle = '#1E46E6'; // vivo-blue
+                    downloadCtx.textAlign = 'center';
+                    downloadCtx.textBaseline = 'middle';
+
+                    // Position ID text below the QR code
+                    const idTargetY = frameHeight * 0.7; // Position 70% down from the top of the frame
+                    downloadCtx.fillText(idText, frameWidth / 2, idTargetY);
+
+                    const image = downloadCanvas.toDataURL("image/png");
                     const link = document.createElement('a');
-                    link.download = `${generatedIdSpan.textContent}_qrcode.png`;
-                    link.href = currentQrCodeDataURL;
+                    link.download = `${generatedId}_with_phone_frame.png`; // Use generatedId directly
+                    link.href = image;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
+
+                } catch (error) {
+                    console.error("Error generating combined image for download:", error);
+                    // Removed the alert here as per your request
                 }
-            });
+            }
+
 
             // --- Admin Download Logic ---
             adminAccessButton.addEventListener('click', async () => {
@@ -259,7 +484,7 @@
                     link.setAttribute('download', 'generated_ids.csv');
                     document.body.appendChild(link);
                     link.click();
-                    link.remove();
+                    document.body.removeChild(link);
                     window.URL.revokeObjectURL(url);
 
                 } catch (error) {
