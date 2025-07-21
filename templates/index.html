@@ -88,6 +88,9 @@
             font-family: 'monospace'; /* font-mono */
             word-break: break-all; /* Ensure long IDs wrap */
             z-index: 10; /* Ensure ID is above the phone frame image */
+            background-color: #FFFFFF; /* Added white background */
+            padding: 5px 10px; /* Added some padding for better appearance */
+            border-radius: 5px; /* Slightly rounded corners */
         }
     </style>
 </head>
@@ -106,14 +109,6 @@
                        class="shadow-sm appearance-none border border-vivo-gray rounded-lg w-full py-3 px-4 text-vivo-dark-blue leading-tight focus:outline-none focus:ring-2 focus:ring-vivo-blue focus:border-transparent"
                        placeholder="e.g., +971501234567">
             </div>
-
-            <!-- Email field removed -->
-            <!-- <div>
-                <label for="email" class="block text-vivo-dark-blue text-sm font-semibold mb-2">Mail ID:</label>
-                <input type="email" id="email" name="email" required
-                       class="shadow-sm appearance-none border border-vivo-gray rounded-lg w-full py-3 px-4 text-vivo-dark-blue leading-tight focus:outline-none focus:ring-2 focus:ring-vivo-blue focus:border-transparent"
-                       placeholder="e.g., your.email@example.com">
-            </div> -->
 
             <button type="submit"
                     class="w-full bg-vivo-blue hover:bg-vivo-blue-darker text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 ease-in-out transform hover:scale-105">
@@ -134,6 +129,8 @@
                     class="mt-6 bg-vivo-dark-blue hover:bg-vivo-blue text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 ease-in-out transform hover:scale-105">
                 Download QR Code
             </button>
+
+            <!-- Removed LLM Integration Section -->
         </div>
 
         <div class="mt-6 text-center">
@@ -210,12 +207,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             const idForm = document.getElementById('idForm');
             const phoneInput = document.getElementById('phone');
-            // const emailInput = document.getElementById('email'); // Email input removed
             const resultDiv = document.getElementById('result');
             const generatedIdSpan = document.getElementById('generatedIdDisplay');
             const qrcodeDiv = document.getElementById('qrcode');
             const downloadQrButton = document.getElementById('downloadQr'); 
             const adminAccessButton = document.getElementById('adminAccessButton');
+            // Removed LLM related elements:
+            // const getIdeasButton = document.getElementById('getIdeasButton');
+            // const ideasOutput = document.getElementById('ideasOutput');
+            // const ideasContent = document.getElementById('ideasContent');
+            // const ideasLoading = document.getElementById('ideasLoading');
 
             // Store the generated ID globally so it can be accessed by the download button
             let currentGeneratedId = ''; 
@@ -224,7 +225,6 @@
             idForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const phone = phoneInput.value.trim();
-                // const email = emailInput.value.trim(); // Email input removed
 
                 // Client-side validation for UAE phone number format
                 const uaePhoneRegex = /^(?:\+971|00971|0)?(?:5[0-9]|2|3|4|6|7|8|9)\d{7}$/;
@@ -233,13 +233,6 @@
                     return;
                 }
 
-                // Email validation removed
-                // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                // if (!emailRegex.test(email)) {
-                //     alert('Please enter a valid email address.');
-                //     return;
-                // }
-
                 try {
                     const response = await fetch(`${FLASK_BACKEND_URL}/generate-id`, {
                         method: 'POST',
@@ -247,7 +240,6 @@
                             'Content-Type': 'application/json',
                             'X-User-ID': clientUniqueId
                         },
-                        // Only send phone, email removed
                         body: JSON.stringify({ phone }) 
                     });
 
@@ -302,10 +294,11 @@
                         }
                     }).catch(error => {
                         console.error("Error loading images for QR display:", error);
-                        alert("Failed to render QR code with logo. Please try again.");
+                        alert(`Error rendering QR code: ${error.message}`);
                     });
 
                     resultDiv.classList.remove('hidden');
+                    // ideasOutput.classList.add('hidden'); // Removed LLM related line
 
                 } catch (error) {
                     console.error('Error:', error);
@@ -313,14 +306,12 @@
                 }
             });
 
-            // Re-added downloadQrButton click listener
+            // Download QR button click listener
             downloadQrButton.addEventListener('click', async () => {
-                // Ensure QR code is generated before attempting to download
                 if (!currentGeneratedId || !qrcodeDiv.querySelector('canvas')) {
                     alert('Please generate an ID and QR code first.');
                     return;
                 }
-                // Reuse the same download logic
                 triggerQrImageDownload(currentGeneratedId, qrcodeDiv.querySelector('canvas'));
             });
 
@@ -398,20 +389,17 @@
 
                     // Draw the QR code (from its canvas) onto the download canvas
                     if (qrCanvas) {
-                        // --- IMPORTANT: These coordinates are crucial for alignment ---
-                        // These values are estimated based on the proportions of the new phone frame image (Image_2025-07-21_132427_016.jpg)
-                        // and the desired output. You might need to fine-tune these slightly.
-                        const qrTargetWidth = frameWidth * 0.6; // QR code takes up 60% of the phone frame width
-                        const qrTargetHeight = qrTargetWidth; // Keep it square
+                        const qrTargetWidth = frameWidth * 0.6; 
+                        const qrTargetHeight = qrTargetWidth; 
                         
-                        const qrTargetX = (frameWidth - qrTargetWidth) / 2; // Center horizontally
-                        const qrTargetY = frameHeight * 0.25; // Position 25% down from the top of the frame
+                        const qrTargetX = (frameWidth - qrTargetWidth) / 2; 
+                        const qrTargetY = frameHeight * 0.25; 
 
                         downloadCtx.drawImage(qrCanvas, qrTargetX, qrTargetY, qrTargetWidth, qrTargetHeight);
 
                         // Re-draw the Vivo logo on top of the QR code for the download image
                         if (loadedVivoLogoImage) {
-                            const logoDownloadWidth = qrTargetWidth * 0.35; // Same 35% ratio of QR code
+                            const logoDownloadWidth = qrTargetWidth * 0.35; 
                             const logoDownloadHeight = logoDownloadWidth * (loadedVivoLogoImage.naturalHeight / loadedVivoLogoImage.naturalWidth);
                             const logoDownloadX = qrTargetX + (qrTargetWidth - logoDownloadWidth) / 2;
                             const logoDownloadY = qrTargetY + (qrTargetHeight - logoDownloadHeight) / 2;
@@ -424,19 +412,31 @@
 
                     // Draw the Generated ID text onto the download canvas
                     const idText = generatedIdSpan.textContent;
-                    const idFontSize = 60; // Adjusted font size for 600x1200 canvas
+                    const idFontSize = 60; 
+                    downloadCtx.font = `bold ${idFontSize}px Inter`; // Set font before measuring
+                    const idTextWidth = downloadCtx.measureText(idText).width;
+                    const idPadding = 20; 
+                    const idRectWidth = idTextWidth + idPadding * 2;
+                    const idRectHeight = idFontSize * 1.5; // More generous height based on font size
+                    const idRectX = (frameWidth - idRectWidth) / 2; 
+                    const idRectY = frameHeight * 0.7 - idRectHeight / 2; 
+
+                    // Draw white background rectangle
+                    downloadCtx.fillStyle = '#FFFFFF'; 
+                    downloadCtx.fillRect(idRectX, idRectY, idRectWidth, idRectHeight);
+
+
                     downloadCtx.font = `bold ${idFontSize}px Inter`;
-                    downloadCtx.fillStyle = '#1E46E6'; // vivo-blue
+                    downloadCtx.fillStyle = '#1E46E6'; 
                     downloadCtx.textAlign = 'center';
                     downloadCtx.textBaseline = 'middle';
 
-                    // Position ID text below the QR code
-                    const idTargetY = frameHeight * 0.7; // Position 70% down from the top of the frame
+                    const idTargetY = idRectY + idRectHeight / 2; 
                     downloadCtx.fillText(idText, frameWidth / 2, idTargetY);
 
                     const image = downloadCanvas.toDataURL("image/png");
                     const link = document.createElement('a');
-                    link.download = `${generatedId}_with_phone_frame.png`; // Use generatedId directly
+                    link.download = `${generatedId}_with_phone_frame.png`; 
                     link.href = image;
                     document.body.appendChild(link);
                     link.click();
@@ -444,9 +444,11 @@
 
                 } catch (error) {
                     console.error("Error generating combined image for download:", error);
-                    // Removed the alert here as per your request
                 }
             }
+
+            // Removed LLM Integration Logic:
+            // getIdeasButton.addEventListener('click', async () => { ... });
 
 
             // --- Admin Download Logic ---
