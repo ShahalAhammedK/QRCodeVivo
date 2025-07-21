@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID and QR Code Generator</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Inter font */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Default background for mobile (smaller screens) */
+            background-image: url('/static/X200FE-KV-RGB-Vertical (1).jpg'); /* Mobile Background Image */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Ensures background stays fixed during scroll */
+        }
+
+        /* Define custom Tailwind colors */
+        .bg-vivo-blue { background-color: #1E46E6; }
+        .hover\\:bg-vivo-blue-darker:hover { background-color: #1636b3; } /* Slightly darker for hover */
+        .bg-vivo-dark-blue { background-color: #06175E; }
+        .text-vivo-dark-blue { color: #06175E; }
+        .bg-vivo-light-blue { background-color: #D1EBF2; }
+        .bg-vivo-gray { background-color: #E6E6E6; }
+        .text-vivo-gray { color: #E6E6E6; }
+        .text-vivo-black { color: #000000; }
+        .border-vivo-blue { border-color: #1E46E6; }
+        .focus\\:ring-vivo-blue { --tw-ring-color: #1E46E6; }
+
+        /* Media query for PC (larger screens - md breakpoint and up) */
+        @media (min-width: 768px) {
+            body {
+                background-image: url('/static/X200FE-KV-RGB-HOR.jpg'); /* PC Background Image */
+            }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen relative">
+    <!-- Vivo Logo on the right side of the page -->
+    <img src="/static/Vivo_(technology_company)-Logo.wine (1).png" alt="Vivo Logo" 
+         class="absolute top-4 right-4 w-16 h-auto md:w-20 lg:w-24 rounded-lg shadow-md">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md bg-opacity-80">
+        <h1 class="text-3xl font-bold text-center text-vivo-dark-blue mb-6">Generate Your ID and QR Code</h1>
+
+        <form id="idForm" class="space-y-4">
+            <div>
+                <label for="phone" class="block text-vivo-dark-blue text-sm font-semibold mb-2">Phone Number:</label>
+                <input type="tel" id="phone" name="phone" required
+                       class="shadow-sm appearance-none border border-vivo-gray rounded-lg w-full py-3 px-4 text-vivo-dark-blue leading-tight focus:outline-none focus:ring-2 focus:ring-vivo-blue focus:border-transparent"
+                       placeholder="e.g., +971501234567">
+            </div>
+
+            <div>
+                <label for="email" class="block text-vivo-dark-blue text-sm font-semibold mb-2">Mail ID:</label>
+                <input type="email" id="email" name="email" required
+                       class="shadow-sm appearance-none border border-vivo-gray rounded-lg w-full py-3 px-4 text-vivo-dark-blue leading-tight focus:outline-none focus:ring-2 focus:ring-vivo-blue focus:border-transparent"
+                       placeholder="e.g., your.email@example.com">
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-vivo-blue hover:bg-vivo-blue-darker text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 ease-in-out transform hover:scale-105">
+                Generate ID & QR
+            </button>
+        </form>
+
+        <div id="result" class="mt-8 pt-6 border-t border-vivo-gray text-center hidden">
+            <h2 class="text-xl font-bold text-vivo-dark-blue mb-4">Generated ID: <span id="generatedId" class="text-vivo-blue font-mono"></span></h2>
+            <div id="qrcode" class="mt-6 flex justify-center"></div>
+            <button id="downloadQr"
+                    class="mt-6 bg-vivo-dark-blue hover:bg-vivo-blue text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 ease-in-out transform hover:scale-105">
+                Download QR Code
+            </button>
+        </div>
+
+        <div class="mt-6 text-center">
+            <button id="adminAccessButton"
+                    class="bg-vivo-gray hover:bg-vivo-dark-blue hover:text-white text-vivo-dark-blue font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
+                Admin Download (CSV)
+            </button>
+        </div>
+
+    </div>
+
+    <!-- QR Code Library -->
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <!-- Your custom JavaScript for frontend logic -->
+    <script>
+        const FLASK_BACKEND_URL = 'http://127.0.0.1:5000'; // Ensure this matches your Flask app URL
+
+        // Basic authentication credentials for admin (for demo purposes only)
+        const ADMIN_USERNAME = 'admin';
+        const ADMIN_PASSWORD = 'securepassword';
+
+        // Path to your Vivo logo image for QR code overlay
+        const VIVO_LOGO_URL = '/static/Vivo_(technology_company)-Logo.wine (1).png'; 
+        let vivoLogoImage = new Image();
+        vivoLogoImage.src = VIVO_LOGO_URL;
+        vivoLogoImage.onerror = () => {
+            console.error("Failed to load Vivo logo image for QR code. Check the path:", VIVO_LOGO_URL);
+        };
+
+        // Function to generate a UUID (Universally Unique Identifier)
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0,
+                    v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Get or generate a unique client ID for this browser
+        let clientUniqueId = localStorage.getItem('clientUniqueId');
+        if (!clientUniqueId) {
+            clientUniqueId = generateUUID();
+            localStorage.setItem('clientUniqueId', clientUniqueId);
+        }
+        console.log("Client Unique ID for this browser:", clientUniqueId);
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const idForm = document.getElementById('idForm');
+            const phoneInput = document.getElementById('phone');
+            const emailInput = document.getElementById('email');
+            const resultDiv = document.getElementById('result');
+            const generatedIdSpan = document.getElementById('generatedId');
+            const qrcodeDiv = document.getElementById('qrcode');
+            const downloadQrButton = document.getElementById('downloadQr');
+            const adminAccessButton = document.getElementById('adminAccessButton');
+
+            let currentQrCodeDataURL = '';
+
+            // --- User View Logic ---
+            idForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const phone = phoneInput.value.trim();
+                const email = emailInput.value.trim();
+
+                // Client-side validation for UAE phone number format
+                const uaePhoneRegex = /^(?:\+971|00971|0)?(?:5[0-9]|2|3|4|6|7|8|9)\d{7}$/;
+                if (!uaePhoneRegex.test(phone)) {
+                    alert('Please enter a valid UAE phone number (e.g., 0501234567 or +971501234567).');
+                    return;
+                }
+
+                // Client-side validation for email format
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    alert('Please enter a valid email address.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${FLASK_BACKEND_URL}/generate-id`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-ID': clientUniqueId
+                        },
+                        body: JSON.stringify({ phone, email })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to generate ID from backend.');
+                    }
+
+                    const generatedId = data.id;
+                    generatedIdSpan.textContent = generatedId;
+
+                    qrcodeDiv.innerHTML = '';
+                    new QRCode(qrcodeDiv, {
+                        text: generatedId,
+                        width: 200,
+                        height: 200,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+
+                    setTimeout(() => {
+                        const canvas = qrcodeDiv.querySelector('canvas');
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            const qrSize = canvas.width;
+
+                            if (vivoLogoImage.complete && vivoLogoImage.naturalWidth > 0) {
+                                const logoWidth = qrSize * 0.35;
+                                const logoHeight = logoWidth * (vivoLogoImage.naturalHeight / vivoLogoImage.naturalWidth);
+                                const logoX = (qrSize - logoWidth) / 2;
+                                const logoY = (qrSize - logoHeight) / 2;
+
+                                ctx.drawImage(vivoLogoImage, logoX, logoY, logoWidth, logoHeight);
+                            } else {
+                                console.warn("Vivo logo not loaded, QR code generated without logo overlay.");
+                            }
+
+                            currentQrCodeDataURL = canvas.toDataURL("image/png");
+                            downloadQrButton.classList.remove('hidden');
+                        }
+                    }, 100);
+
+                    resultDiv.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(`An error occurred: ${error.message}`);
+                }
+            });
+
+            downloadQrButton.addEventListener('click', () => {
+                if (currentQrCodeDataURL && generatedIdSpan.textContent) {
+                    const link = document.createElement('a');
+                    link.download = `${generatedIdSpan.textContent}_qrcode.png`;
+                    link.href = currentQrCodeDataURL;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+
+            // --- Admin Download Logic ---
+            adminAccessButton.addEventListener('click', async () => {
+                const username = prompt('Enter Admin Username:');
+                if (username === null) return;
+
+                const password = prompt('Enter Admin Password:');
+                if (password === null) return;
+
+                if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                    await handleDownloadCsv(username, password);
+                } else {
+                    alert('Incorrect Admin Username or Password.');
+                }
+            });
+
+            async function handleDownloadCsv(username, password) {
+                try {
+                    const headers = new Headers();
+                    headers.set('Authorization', 'Basic ' + btoa(username + ":" + password));
+
+                    const response = await fetch(`${FLASK_BACKEND_URL}/admin/download-ids`, {
+                        method: 'GET',
+                        headers: headers
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Failed to download CSV: ${response.status} - ${errorText}`);
+                    }
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'generated_ids.csv');
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+
+                } catch (error) {
+                    console.error("Error downloading CSV:", error);
+                    alert(`Failed to download CSV: ${error.message}`);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
