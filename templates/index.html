@@ -107,12 +107,13 @@
                        placeholder="e.g., +971501234567">
             </div>
 
-            <div>
+            <!-- Email field removed -->
+            <!-- <div>
                 <label for="email" class="block text-vivo-dark-blue text-sm font-semibold mb-2">Mail ID:</label>
                 <input type="email" id="email" name="email" required
                        class="shadow-sm appearance-none border border-vivo-gray rounded-lg w-full py-3 px-4 text-vivo-dark-blue leading-tight focus:outline-none focus:ring-2 focus:ring-vivo-blue focus:border-transparent"
                        placeholder="e.g., your.email@example.com">
-            </div>
+            </div> -->
 
             <button type="submit"
                     class="w-full bg-vivo-blue hover:bg-vivo-blue-darker text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 ease-in-out transform hover:scale-105">
@@ -209,11 +210,11 @@
         document.addEventListener('DOMContentLoaded', () => {
             const idForm = document.getElementById('idForm');
             const phoneInput = document.getElementById('phone');
-            const emailInput = document.getElementById('email');
+            // const emailInput = document.getElementById('email'); // Email input removed
             const resultDiv = document.getElementById('result');
             const generatedIdSpan = document.getElementById('generatedIdDisplay');
             const qrcodeDiv = document.getElementById('qrcode');
-            const downloadQrButton = document.getElementById('downloadQr'); // Re-enabled
+            const downloadQrButton = document.getElementById('downloadQr'); 
             const adminAccessButton = document.getElementById('adminAccessButton');
 
             // Store the generated ID globally so it can be accessed by the download button
@@ -223,7 +224,7 @@
             idForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const phone = phoneInput.value.trim();
-                const email = emailInput.value.trim();
+                // const email = emailInput.value.trim(); // Email input removed
 
                 // Client-side validation for UAE phone number format
                 const uaePhoneRegex = /^(?:\+971|00971|0)?(?:5[0-9]|2|3|4|6|7|8|9)\d{7}$/;
@@ -232,12 +233,12 @@
                     return;
                 }
 
-                // Client-side validation for email format
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email)) {
-                    alert('Please enter a valid email address.');
-                    return;
-                }
+                // Email validation removed
+                // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                // if (!emailRegex.test(email)) {
+                //     alert('Please enter a valid email address.');
+                //     return;
+                // }
 
                 try {
                     const response = await fetch(`${FLASK_BACKEND_URL}/generate-id`, {
@@ -246,7 +247,8 @@
                             'Content-Type': 'application/json',
                             'X-User-ID': clientUniqueId
                         },
-                        body: JSON.stringify({ phone, email })
+                        // Only send phone, email removed
+                        body: JSON.stringify({ phone }) 
                     });
 
                     const data = await response.json();
